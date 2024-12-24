@@ -1,10 +1,9 @@
 name = "youtube-downloader"
-main = "functions/[[routes]].js"
 compatibility_date = "2024-01-01"
 
-[vars]
-YOUTUBE_API_KEY = ""  # 将在Cloudflare Dashboard中设置
+[build]
+command = "npm run build"
+pages_build_output_dir = ".next"
 
-[[routes]]
-pattern = "/api/*"
-zone_name = "your-domain.com" 
+[env.production]
+vars = { YOUTUBE_API_KEY = "" } 
