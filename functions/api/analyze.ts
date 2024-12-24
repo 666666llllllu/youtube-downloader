@@ -1,4 +1,4 @@
-import { createYtDlp } from 'yt-dlp-wasm';
+import ytdl from 'ytdl-core';
 
 interface Env {
   YOUTUBE_API_KEY: string;
@@ -8,7 +8,7 @@ export async function onRequest(context: { request: Request; env: Env }) {
   try {
     const { url } = await context.request.json();
 
-    if (!isValidYouTubeUrl(url)) {
+    if (!ytdl.validateURL(url)) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -18,16 +18,15 @@ export async function onRequest(context: { request: Request; env: Env }) {
       );
     }
 
-    const ytDlp = await createYtDlp();
-    const videoInfo = await ytDlp.getVideoInfo(url);
-
-    const formats = videoInfo.formats
-      .filter(format => format.filesize && format.quality)
+    const info = await ytdl.getInfo(url);
+    
+    const formats = info.formats
+      .filter(format => format.hasVideo && format.hasAudio)
       .map(format => ({
-        formatId: format.format_id,
-        quality: format.quality,
-        extension: format.ext,
-        filesize: format.filesize,
+        formatId: format.itag,
+        quality: format.qualityLabel,
+        extension: 'mp4',
+        filesize: parseInt(format.contentLength) || 0,
         downloadUrl: format.url
       }));
 
@@ -36,10 +35,10 @@ export async function onRequest(context: { request: Request; env: Env }) {
         success: true,
         formats,
         videoInfo: {
-          title: videoInfo.title,
-          thumbnail: videoInfo.thumbnail,
-          duration: formatDuration(videoInfo.duration),
-          author: videoInfo.uploader
+          title: info.videoDetails.title,
+          thumbnail: info.videoDetails.thumbnails[0].url,
+          duration: formatDuration(parseInt(info.videoDetails.lengthSeconds)),
+          author: info.videoDetails.author.name
         }
       }),
       {
@@ -58,10 +57,6 @@ export async function onRequest(context: { request: Request; env: Env }) {
       { status: 500 }
     );
   }
-}
-
-function isValidYouTubeUrl(url: string): boolean {
-  return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/.test(url);
 }
 
 function formatDuration(seconds: number): string {
