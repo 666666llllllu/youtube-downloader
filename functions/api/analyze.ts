@@ -1,5 +1,3 @@
-import ytdl from 'ytdl-core';
-
 interface Env {
   YOUTUBE_API_KEY: string;
 }
