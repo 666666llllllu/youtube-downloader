@@ -19,6 +19,11 @@ interface VideoData {
   };
 }
 
+function isValidYouTubeUrl(url: string): boolean {
+  const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+  return pattern.test(url);
+}
+
 export default function VideoForm() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
