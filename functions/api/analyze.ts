@@ -7,8 +7,9 @@ interface Env {
 export async function onRequest(context: { request: Request; env: Env }) {
   try {
     const { url } = await context.request.json();
+    const videoId = extractVideoId(url);
 
-    if (!ytdl.validateURL(url)) {
+    if (!videoId) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -18,27 +19,40 @@ export async function onRequest(context: { request: Request; env: Env }) {
       );
     }
 
-    const info = await ytdl.getInfo(url);
-    
-    const formats = info.formats
-      .filter(format => format.hasVideo && format.hasAudio)
-      .map(format => ({
-        formatId: format.itag,
-        quality: format.qualityLabel,
+    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${context.env.YOUTUBE_API_KEY}&part=snippet,contentDetails`;
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    if (!data.items || data.items.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Video not found'
+        }),
+        { status: 404 }
+      );
+    }
+
+    const video = data.items[0];
+    const formats = [
+      {
+        formatId: 'mp4_720p',
+        quality: '720p',
         extension: 'mp4',
-        filesize: parseInt(format.contentLength) || 0,
-        downloadUrl: format.url
-      }));
+        filesize: 0,
+        downloadUrl: `https://www.youtube.com/watch?v=${videoId}`
+      }
+    ];
 
     return new Response(
       JSON.stringify({
         success: true,
         formats,
         videoInfo: {
-          title: info.videoDetails.title,
-          thumbnail: info.videoDetails.thumbnails[0].url,
-          duration: formatDuration(parseInt(info.videoDetails.lengthSeconds)),
-          author: info.videoDetails.author.name
+          title: video.snippet.title,
+          thumbnail: video.snippet.thumbnails.high.url,
+          duration: video.contentDetails.duration,
+          author: video.snippet.channelTitle
         }
       }),
       {
@@ -59,8 +73,18 @@ export async function onRequest(context: { request: Request; env: Env }) {
   }
 }
 
-function formatDuration(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+function extractVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
+    /youtube\.com\/embed\/([^&\n?#]+)/,
+    /youtube\.com\/v\/([^&\n?#]+)/,
+    /youtube\.com\/shorts\/([^&\n?#]+)/
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+
+  return null;
 } 
