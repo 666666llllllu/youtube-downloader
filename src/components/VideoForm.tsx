@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import VideoInfo from './VideoInfo'
+import { isValidYouTubeUrl } from '@/utils/validation'
 
 interface VideoData {
   formats: Array<{
@@ -17,11 +18,6 @@ interface VideoData {
     duration: string;
     author: string;
   };
-}
-
-function isValidYouTubeUrl(url: string): boolean {
-  const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
-  return pattern.test(url);
 }
 
 export default function VideoForm() {
